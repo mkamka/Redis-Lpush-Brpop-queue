@@ -1,16 +1,31 @@
 const redis = require('./redis');
 const Promise = require('bluebird');
+const _ = require('lodash');
 
-class RedisLpushBRPopQueue {
+class RedisQueue {
 
-  constructor(options) {
+  constructor(options, clients) {
     this.options = options;
-    this.subscribeCli = redis.createClient(options);
-    this.publishCli = redis.createClient(options);
+    this.multiSub = options.multiSub || false;
+    if (clients && clients.publish && clients.subscribe) {
+      this.publishCli = clients.publish;
+      this.subscribeCli = clients.subscribe;
+    } else {
+      this.subscribeCli = redis.createClient(options);
+      this.publishCli = redis.createClient(options);
+    }
   }
 
-  subscribe(key, func) {
-    const clientDup = this.subscribeCli.duplicate();
+  publishToOne(key, obj) {
+    this.publishCli.LPUSH(key, obj);
+  };
+
+  publishToMany(key, obj) {
+    this.publishCli.publish(key, obj);
+  };
+
+  subscribeAsOne(key, func) {
+    const clientDup = this.multiSub ? this.subscribeCli.duplicate() : this.subscribeCli;
     const onReceive = (eventKey, handlerfunc) => {
       const cb = (e, reply) => {
         const [, message] = reply;
@@ -22,14 +37,24 @@ class RedisLpushBRPopQueue {
           onReceive(eventKey, handlerfunc);
         });
       };
-      clientDup.brpop(eventKey, 0, cb);
+      clientDup.BRPOP(eventKey, 0, cb);
     };
     onReceive(key, func);
   };
 
-  publish(key, obj) {
-    this.publishCli.lpush(key, obj);
+  subscribeAsMany(key, func) {
+    const clientDup = this.multiSub ? this.subscribeCli.duplicate() : this.subscribeCli;
+    clientDup.on('message', (channel, message) => {
+      if (_.isEqual(channel, key)) {
+        const ret = func(message);
+        Promise.resolve(ret)
+          .catch((err) => {
+            console.error('Error on subscribe callback.', err);
+          });
+      }
+    });
+    clientDup.subscribe(key);
   };
 }
 
-export default RedisLpushBRPopQueue;
+module.exports = RedisQueue;
