@@ -1,5 +1,5 @@
 {
-  "name": "redis-pushpop-queue",
+  "name": "redis-queues",
   "version": "0.0.2",
   "description": "A redis messaging queue that uses lpush/brpop methods to transfer messages ",
   "main": "src/redisQueues.js",
