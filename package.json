@@ -1,7 +1,7 @@
 {
   "name": "redis-queues",
-  "version": "0.0.2",
-  "description": "A redis messaging queue that uses lpush/brpop methods to transfer messages ",
+  "version": "0.0.3",
+  "description": "A redis messaging queue that uses lpush/brpop methods to transfer messages",
   "main": "src/redisQueues.js",
   "scripts": {
     "test": "node ./node_modules/mocha/bin/mocha"
@@ -14,6 +14,8 @@
     "redis",
     "lpush",
     "brpop",
+    "publish",
+    "subscribe",
     "node.js"
   ],
   "author": "Miikka Kajanne",

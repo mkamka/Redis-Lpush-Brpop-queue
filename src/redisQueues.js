@@ -1,30 +1,26 @@
-const redis = require('./redis');
-
 class RedisQueues {
   constructor(options, clients) {
     this.options = options;
-    if (clients) {
-      if(clients.publish) {
-        this.publishCli = clients.publish;
-      }
-      if (clients.subscribe) {
-        this.subscribeCli = clients.subscribe;
-      }
-    } else {
-      this.subscribeCli = redis.createClient(options);
-      this.publishCli = redis.createClient(options);
+    if(clients && clients.publish) {
+      this.publishCli = clients.publish;
+    }
+    if (clients && clients.subscribe) {
+      this.subscribeCli = clients.subscribe;
     }
   }
 }
 
-class SingleReceiverQueue extends RedisQueues {
+class PublishQueue extends RedisQueues {
 
   constructor(options, clients) {
     super(options, clients);
-    this.multiSub = options.multiSub || false;
+    if(!this.publishCli && options.redisPort && options.redisUrl) {
+      const redis = require('./redis');
+      this.publishCli = redis.createClient(options);
+    }
   }
 
-  publish(key, obj) {
+  publishToOne(key, obj) {
     if(this.publishCli) {
       this.publishCli.LPUSH(key, obj);
     } else {
@@ -32,9 +28,42 @@ class SingleReceiverQueue extends RedisQueues {
     }
   };
 
-  subscribe(key, func) {
+  publishToMany(key, obj) {
+    if(this.publishCli) {
+      this.publishCli.publish(key, obj);
+    } else {
+      throw 'publishCli not set';
+    }
+  };
+}
+
+class SubscribeQueue extends RedisQueues {
+
+  constructor(options, clients) {
+    super(options, clients);
+    this.duplicateSubCli = options.duplicateSubCli || false;
+    if(!this.subscribeCli && options.redisPort && options.redisUrl) {
+      const redis = require('./redis');
+      this.subscribeCli = redis.createClient(options);
+    }
+  }
+
+  subscribeToMany(key, func) {
     if(this.subscribeCli) {
-      const clientDup = this.multiSub ? this.subscribeCli.duplicate() : this.subscribeCli;
+      this.subscribeCli.on('message', (channel, message) => {
+        if (channel === key) {
+          func(message);
+        }
+      });
+      this.subscribeCli.subscribe(key);
+    } else {
+      throw 'subscribeCli not set';
+    }
+  };
+
+  subscribeToOne(key, func) {
+    if(this.subscribeCli) {
+      const clientDup = this.duplicateSubCli ? this.subscribeCli.duplicate() : this.subscribeCli;
       const onReceive = (eventKey, handlerfunc) => {
         const cb = (e, reply) => {
           const [, message] = reply;
@@ -49,34 +78,7 @@ class SingleReceiverQueue extends RedisQueues {
   };
 }
 
-class MultiReceiverQueue extends RedisQueues {
-
-  constructor(options, clients) {
-    super(options, clients);
-  }
-  publish(key, obj) {
-    if(this.publishCli) {
-      this.publishCli.publish(key, obj);
-    } else {
-      throw 'publishCli not set';
-    }
-  };
-
-  subscribe(key, func) {
-    if(this.subscribeCli) {
-      this.subscribeCli.on('message', (channel, message) => {
-        if (channel === key) {
-          func(message);
-        }
-      });
-      this.subscribeCli.subscribe(key);
-    } else {
-      throw 'subscribeCli not set';
-    }
-  };
-}
-
 module.exports = {
-  MultiReceiverQueue,
-  SingleReceiverQueue,
+  PublishQueue,
+  SubscribeQueue,
 };
