@@ -1,6 +1,6 @@
 {
   "name": "redis-queues",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A redis messaging queue that uses lpush/brpop methods to transfer messages",
   "main": "src/redisQueues.js",
   "scripts": {
@@ -27,7 +27,11 @@
     "bluebird": "^3.4.6",
     "lodash": "^4.17.4"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "redis": "^2.6.3"
+  },
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/mkamka/redis-queues.git"
   }
 }

@@ -1,3 +1,4 @@
+# STILL WORK IN PROGRESS
 # Redis-Queues
 
 Redis-Queues is a simple and light wrapper for redis clients to utilize both
@@ -14,56 +15,95 @@ npm install redis-queues
 
 ### Usage
 
-#### Queue for multiple receivers
+#### Queue for publish
 
 ##### importing
 ```javascript
-const MultiReceiverQueue = require('redis-queues').MultiReceiverQueue;
+const PublishQueue = require('redis-queues').PublishQueue;
  
 /// OR
  
 const redisQueues = require('redis-queues');
-const MultiReceiverQueue = redisQueues.MultiReceiverQueue;
+const PublishQueue = redisQueues.PublishQueue;
+ 
+```
+##### Options
+Bot queues need to be initialized with some options.
+```javascript
+const options = {
+    redisPort: '16379', // needed when clients are not inserted on class init
+    redisUrl: 'localhost', // needed when clients are not inserted on class init
+    duplicateSubCli: true, // needed in subscribe queue when subscribeToOne function will be used to more than one key 
+};
+const clients = {
+  publish: client, // used only in publishQueue, not needed for subscribeQueue
+  subscribe: client, // used only in subscribeQueue, not needed for publishQueue
+}
+```
+If you dont want Redis-queues to depend on node redis library, you can use another Redis library you prefer to initialize clients beforehand. I've only tested Redis library but others should work too.
+The class constructor takes an options object as parameter and clients as and optional parameter. If clients object is not used, Redis-queues will depend on Redis to create the needed client.
+If no clients object is used, redisPort and redisUrl properties are needed in the options object.
+
+##### initializing the queue
+Redis-queues can be used with already created redis clients or you can let it generate the clients for you by giving a redis port and url in the options parameter to the class constructor.
+```javascript
+const publishQueue = new PublishQueue(options, clients);
+```
+
+##### publishing messages to one receiver
+Only one subscriber(the first) will handle the message 
+```javascript
+publishQueue.publishToOne(key, value);
+```
+##### publishing to messages to all receivers
+All subscribers will receive and handle the message
+```javascript
+publishQueue.publishToMany(key, value);
+```
+
+#### Queue for subscribe
+
+Subcribe queue will excecute a callback function when it receives a message. 
+
+##### importing
+```javascript
+const SubscribeQueue = require('redis-queues').SubscribeQueue;
+ 
+/// OR
+ 
+const redisQueues = require('redis-queues');
+const SubscribeQueue = redisQueues.SubscribeQueue;
  
 ```
 ##### initializing the queue
 Redis-queues can be used with already created redis clients or you can let it generate the clients for you by giving a redis port and url in the options parameter to the class constructor.
 ```javascript
-const multiQueue = new MultiReceiverQueue(options, clients);
+const subscribeQueue = new SubscribeQueue(options, clients);
 ```
 
-##### publishing messages to a key
+##### Subscribing to to a key as one.
+Only one subscriber(the first) will handle the message 
 ```javascript
-multiQueue.publish('testEvents', 'testing!');
+subscribeQueue.subscribeToOne(key, callback);
 ```
-##### subscribing to messages by key
+##### Subscribing to to a key as many.
+All subscribers will receive and handle the message
 ```javascript
-multiQueue.subscribe('testEvents', callback);
+subscribeQueue.subscribeToMany(key, callback);
 ```
 
-#### Queue for single receiver
-
-##### importing
-```javascript
-const SingleReceiverQueue = require('redis-queues').SingleReceiverQueue;
+##### Basic principles
+IMPORTANT! subscribeToOne will only receive messages published using publishToOne method. 
+subscribeToMany will only receive messages published using publishToMany method. They can not be used in parallel.
  
-/// OR
- 
-const redisQueues = require('redis-queues');
-const SingleReceiverQueue = redisQueues.SingleReceiverQueue;
- 
-```
-##### initializing the queue
-Redis-queues can be used with already created redis clients or you can let it generate the clients for you by giving a redis port and url in the options parameter to the class constructor.
+#### Unit Tests
+
+Unit tests can be run using the following commands
 ```javascript
-const singleQueue = new SingleReceiverQueue(options, clients);
+npm install
+```
+```javascript
+npm run test
 ```
 
-##### publishing messages to a key
-```javascript
-singleQueue.publish('testEvents', 'testing!');
-```
-##### subscribing to messages by key
-```javascript
-singleQueue.subscribe('testEvents', callback);
-```
+This library is still quite experimental. All improvement requests are warmly welcome.
